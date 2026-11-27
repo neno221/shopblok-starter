@@ -6,10 +6,11 @@
 // Enter with nothing highlighted submits the overlay's GET form to `{m}/search`, with or without
 // this island.
 // T113 (D150): the island draws SearchOverlay's frame (the button and the dialog) and fetches the
-// dialog's content, `SearchOverlayPanel` (Base UI's Autocomplete and the results, about 12 KB
-// gzipped), when the visitor reaches for the button (the pointer over it, a press, the focus), so
-// it is in no first load (`first-load.ts`' `keptOut` checks it). The
-// frame opens the dialog once the panel is in; a failed fetch is asked again at the next reach.
+// dialog's content, `SearchOverlayPanel` (Base UI's Autocomplete and the results: 15.4 KB gzipped
+// off every first load, a 16.1 KB chunk of its own), when the visitor reaches for the button (the
+// pointer over it, a press, the focus), so it is in no first load (`first-load.ts`' `keptOut`
+// checks it). The frame opens the dialog once the panel is in; a failed fetch is asked again at
+// the next reach.
 "use client";
 
 import type { Messages } from "@shopblok/i18n";

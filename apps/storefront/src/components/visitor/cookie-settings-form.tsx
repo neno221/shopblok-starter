@@ -37,7 +37,8 @@ export function CookieSettingsForm({ market, words }: { market: string; words: W
           {words.saved}
         </p>
         <form action={saveCookieSettings.bind(null, market)} className="mt-4 flex flex-col gap-4">
-          <p className="flex min-h-11 items-start gap-3">
+          {/* A label, as the other two rows: axe's `label` rule (T113) found the box unnamed. */}
+          <label className="flex min-h-11 items-start gap-3">
             <input
               type="checkbox"
               checked
@@ -51,7 +52,7 @@ export function CookieSettingsForm({ market, words }: { market: string; words: W
                 {words.necessaryDescription}
               </span>
             </span>
-          </p>
+          </label>
           <label className="flex min-h-11 items-start gap-3">
             <input
               type="checkbox"

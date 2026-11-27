@@ -3,10 +3,11 @@
 // own so that the shop can leave it out of every first load: the shop's header draws
 // `SearchOverlayFrame` (the button and the dialog) and fetches this module when the visitor shows
 // they want the search (`search-overlay-island.tsx`), while `SearchOverlay` (the design system, the
-// registry, the tests) draws the frame with this panel imported, so it behaves as before. Base UI's
-// Autocomplete is about 10 KB of the 12 KB gzipped this keeps out of the shell (SETUP.md "First load,
-// axe and Lighthouse (T113)"). Every rule of the dialog's content is SearchOverlay's (its comment):
-// the inline list, one Escape, the one status region, the field's text kept by the frame.
+// registry, the tests) draws the frame with this panel imported, so it behaves as before. Base
+// UI's Autocomplete is about 10 KB of the 15.4 KB gzipped this keeps out of the shell (SETUP.md
+// "First load, axe and Lighthouse (T113)"). Every rule of the dialog's content is SearchOverlay's
+// (its comment): the inline list, one Escape, the one status region, the field's text kept by the
+// frame.
 "use client";
 
 import { Autocomplete } from "@base-ui/react/autocomplete";
