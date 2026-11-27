@@ -11656,7 +11656,24 @@ Accessibility, best practices, SEO and CLS pass everywhere; performance (LCP, an
 
 **What still holds LCP back** (for T116, which judges the job on staging): on 10 of the 12 pages the LCP element is **the cookie banner's message** (`cookie-consent-message`), which the consent island draws after hydration (D44: the visitor's islands draw nothing on the server), and every Lighthouse run is a first visit with no cookie. Lighthouse's simulated phone puts it at 3.3 to 4.2 s, while the browser saw it at 0.3 to 0.7 s. The home's hero picture is its LCP (3.6 s simulated, 0.17 s seen). Drawing the banner in the static shell (shown by default and hidden by the stored choice before paint) is the change that would move it; it touches D44 and T97's consent, so it is T116's to measure on staging first and to bring to Steven if the budget fails there.
 
-**The proof run in CI** (not kept): one `e2e-smoke` run on this branch with a step that ran the job's command against its own `next start`: see "Checks" below.
+**The proof run in CI** (not kept; reverted before the merge): one `e2e-smoke` run on this branch (run 45920225816, on the review's fixes) with a step that ran `lhci autorun` with this config against its own `next start`, keyless, on GitHub's runner and Google Chrome: 12 addresses, 36 runs in 7.5 minutes, the reports in the run's `lighthouse-proof` artifact, and the assertions' table:
+
+| Page | Failed assertions (median run) |
+|---|---|
+| `/` | performance 0.86, LCP 4,086 ms |
+| `/store` | performance 0.85, LCP 4,238 ms |
+| `/products/demo-heritage-hoodie` | performance 0.86, LCP 4,124 ms |
+| `/privacy` | none |
+| `/cart` | performance 0.86, LCP 4,081 ms |
+| `/journal` | LCP 3,546 ms |
+| `/us` | performance 0.88, LCP 3,786 ms |
+| `/us/store` | performance 0.86, LCP 4,069 ms |
+| `/us/products/demo-heritage-hoodie` | performance 0.87, LCP 3,923 ms |
+| `/us/privacy` | CLS 0.168 |
+| `/us/cart` | performance 0.87, LCP 3,835 ms |
+| `/us/journal` | performance 0.88, LCP 3,789 ms |
+
+Accessibility, best practices, SEO and TBT passed on every page. The run failed its assertions, as the VM's did, on LCP (the cookie banner, above). One thing the VM's runs did not show: **CLS 0.168 on `/us/privacy`** (0 here, in six runs). The artifact's host is not reachable from the cloud VM, so its report was not opened: T116 opens it, or the same page's report on staging, before deciding.
 
 ### Mutations (each fails a check)
 
@@ -11669,7 +11686,7 @@ Accessibility, best practices, SEO and CLS pass everywhere; performance (LCP, an
 
 - `routes-a11y.spec.ts` 4 of 4 and `consent.spec.ts` 9 of 9; `catalog.spec.ts`'s overlay tests (results as the visitor types, the hoodie by a prefix in `/` and `/us`) green with the panel loaded on demand (its four listing tests need CI's `STOREFRONT_LISTING_PAGE_SIZE=3`).
 - Unit: the overlay's 89 (five new: a press whose fetch failed is forgotten, so a later fetch does not open the dialog; the panel asked for on the pointer, a press or the focus; the dialog opening only once the panel is there, with the focus in its field; nothing asked once it is there; the field's text kept while closed), the island's 10 (two new: the frame drawn without the panel, which it fetches once when the visitor reaches for it; a header drawn again has the panel at once), the Image atom's 13 (one new), the filters' 107, the gate's 63 (one new: `ci.yml` takes no deployment status, `lighthouse.yml` does, for Vercel's app only, with its environment), the seed's 50.
-- CI: see the PR (the proof run's assertions' table from its `lighthouse-proof` artifact, and `windows-smoke` dispatched for the lockfile).
+- CI (run 45920225816, the review's fixes and the proof step): every job green, `windows-smoke` among them (the gate runs it for the lockfile, so it was not dispatched separately), `e2e-smoke` with `routes-a11y.spec.ts` in its Playwright suites (21 minutes for all of them) and 38 minutes in all with the proof step's 7.5.
 
 ### The code review (PR 157)
 
@@ -11687,4 +11704,5 @@ Accessibility, best practices, SEO and CLS pass everywhere; performance (LCP, an
 
 - Dispatch `lighthouse.yml` with staging's address (`url`) and read the assertions from its artifact; a preview runs it from Vercel's deployment status, through the bypass script, once the `lighthouse` environment holds `VERCEL_AUTOMATION_BYPASS_SECRET` (each run waits for Steven's click).
 - LCP is the cookie banner's message on a first visit (above): measure it on staging before deciding.
+- CLS 0.168 on `/us/privacy` in CI's proof run, not on the VM (above): read that report (`lighthouse-proof`, run 45920225816, kept until 2027-02-25) or staging's.
 - `routes-a11y.spec.ts` against staging needs the remote mode (T116's `E2E_BASE_URL`) and an `E2E_MEDUSA_LOG` stand-in for the verification e-mail (Resend's test inbox, or a customer made beforehand).
